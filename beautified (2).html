@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vadiraj Jewellers - Admin Control Panel</title>
+
+    <!-- Firebase SDK Compat Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <style>
+    :root {
+      --bg: #0a0a0a;
+      --card: #141414;
+      --gold: #d4af37;
+      --gold-dark: #8b6508;
+      --gold-light: #f3e5ab;
+      --silver: #e0e0e0;
+      --text: #ffffff;
+      --muted: #999999;
+      --border: #262626;
+      --green: #2ecc71;
+      --red: #e74c3c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: 520px;
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #1f1a0a;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    h1 {
+      color: var(--gold);
+      font-size: 18px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+      flex: 1;
+    }
+
+    .admin-notif-badge {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: var(--red);
+      color: #fff;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 10px;
+      display: none;
+    }
+
+    .admin-notif-badge.active {
+      display: inline-block;
+    }
+
+    .tabs {
+      display: flex;
+      background: #161616;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      flex: 1;
+      min-width: 80px;
+      padding: 12px 6px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-weight: bold;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: center;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    .tab-btn.active {
+      color: var(--gold);
+      background: #1c1c1c;
+      border-bottom: 2px solid var(--gold);
+    }
+
+    .panel {
+      display: none;
+      padding: 16px;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .input {
+      width: 100%;
+      padding: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      margin-top: 4px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .input:focus {
+      border-color: var(--gold);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+      color: #000;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    .btn-green {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .btn-red {
+      background: var(--red);
+      color: #fff;
+    }
+
+    /* Collapsible Admin Order & Catalogue Cards */
+    .tx-card,
+    .admin-cat-card {
+      background: #181818;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .tx-card:hover,
+    .admin-cat-card:hover {
+      border-color: var(--gold);
+    }
+
+    .tx-summary-bar,
+    .admin-cat-summary {
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      background: #181818;
+      gap: 10px;
+    }
+
+    .tx-summary-bar:hover,
+    .admin-cat-summary:hover {
+      background: #1f1f1f;
+    }
+
+    .tx-details-body,
+    .admin-cat-details {
+      display: none;
+      padding: 12px;
+      border-top: 1px dashed var(--border);
+      background: #141414;
+    }
+
+    .tx-card.expanded .tx-details-body,
+    .admin-cat-card.expanded .admin-cat-details {
+      display: block;
+    }
+
+    .tx-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+
+    .tx-img {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      margin: 8px 0;
+      background: #000;
+      display: block;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .admin-cat-thumb {
+      width: 45px;
+      height: 45px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--gold);
+      flex-shrink: 0;
+    }
+
+    .admin-cat-info {
+      flex: 1;
+      font-size: 12px;
+    }
+
+    .sm-btn {
+      padding: 8px 12px;
+      font-size: 11px;
+      border-radius: 4px;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Modal Overlay */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .modal-bg.active {
+      display: flex;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 450px;
+      background: #141414;
+      border: 1px solid var(--gold);
+      border-radius: 12px;
+      padding: 20px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    </style>
+  </head>
+
+  <body>
+
+    <div class="wrap">
+      <header>
+        <h1>🔐 Admin Control Panel</h1>
+        <span class="admin-notif-badge" id="adminHeaderBadge">NEW</span>
+      </header>
+
+      <div class="tabs">
+        <button class="tab-btn" data-tab="adminRatesTab" type="button">Live Rates</button>
+        <button class="tab-btn" data-tab="adminUploadTab" type="button">Catalogue</button>
+        <button class="tab-btn active" data-tab="adminOrdersTab" type="button">
+          Orders <span id="ordersTabBadge" style="background:var(--red); color:#fff; font-size:9px; padding:1px 4px; border-radius:6px; display:none;">New</span>
+        </button>
+        <button class="tab-btn" data-tab="adminSchemesTab" type="button">
+          Schemes <span id="schemesTabBadge" style="background:var(--red); color:#fff; font-size:9px; padding:1px 4px; border-radius:6px; display:none;">New</span>
+        </button>
+      </div>
+
+      <!-- Panel 1: Rates Management -->
+      <div class="panel" id="adminRatesTab">
+        <div style="font-size: 14px; color: var(--gold); font-weight: bold; margin-bottom: 10px;">⭐ Broadcast Live Metal Rates</div>
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 14px;">Set daily gold and silver rates. Changes will instantly update across all customer screens in real-time.</div>
+
+        <div class="card">
+          <label style="font-size:11px; color:var(--muted)" for="adminGold24k10g">24 Carat Gold Rate (₹ for 10 Grams) *</label>
+          <input type="number" id="adminGold24k10g" class="input" value="144600" step="100">
+
+          <label style="font-size:11px; color:var(--muted)" for="adminSilver1kg">Fine Silver Rate (₹ for 1 Kg) *</label>
+          <input type="number" id="adminSilver1kg" class="input" value="95000" step="100">
+
+          <button class="btn" id="broadcastRatesBtn" type="button">Broadcast Rates Live</button>
+        </div>
+      </div>
+
+      <!-- Panel 2: Catalogue Upload & Edit Management -->
+      <div class="panel" id="adminUploadTab">
+        <div style="font-size: 14px; color: var(--gold); font-weight: bold; margin-bottom: 10px;">✨ Add New Jewellery Design</div>
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 14px;">Add items to the catalogue. Prices calculate automatically based on live daily rates.</div>
+
+        <div class="card">
+          <label style="font-size:11px; color:var(--muted)" for="itemTitle">Item Title *</label>
+          <input type="text" id="itemTitle" class="input" placeholder="e.g. Royal Antique Necklace">
+
+          <div class="row">
+            <div>
+              <label style="font-size:11px; color:var(--muted)" for="itemPurity">Purity</label>
+              <select id="itemPurity" class="input">
+                <option value="24k">24K Gold (99.9%)</option>
+                <option value="22k" selected>22K Gold (91.6%)</option>
+                <option value="20k">20K Gold (83.3%)</option>
+                <option value="18k">18K Gold (75.0%)</option>
+                <option value="silver">Fine Silver (99.9%)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px; color:var(--muted)" for="itemWeight">Weight (g) *</label>
+              <input type="number" id="itemWeight" class="input" value="15" step="0.1">
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label style="font-size:11px; color:var(--muted)" for="itemWastage">Wastage (%) *</label>
+              <input type="number" id="itemWastage" class="input" value="8" step="0.5">
+            </div>
+            <div>
+              <label style="font-size:11px; color:var(--muted)" for="itemMaking">Making (₹/g) *</label>
+              <input type="number" id="itemMaking" class="input" value="250" step="10">
+            </div>
+          </div>
+
+          <label style="font-size:11px; color:var(--muted)" for="itemImageFile">Item Image *</label>
+          <input type="file" id="itemImageFile" class="input" accept="image/*" style="padding:6px;">
+
+          <button class="btn" id="uploadCatalogueBtn" type="button">Upload Design to Live App</button>
+        </div>
+
+        <div style="font-size: 14px; color: var(--gold); font-weight: bold; margin: 16px 0 10px;">📋 Manage & Edit Existing Catalogue</div>
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 10px;">Tap any catalogue item to expand/collapse specifications, edit details, or delete.</div>
+        <div id="adminCatalogueListContainer">
+          <div style="font-size:12px; color:var(--muted); text-align:center; padding:15px;">Loading catalogue items...</div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Orders Management -->
+      <div class="panel active" id="adminOrdersTab">
+        <div style="font-size: 14px; color: var(--gold); font-weight: bold; margin-bottom: 10px;">📦 Customer Orders & Payments</div>
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 14px;">Tap any order card to expand/collapse details, verify payments, edit records, or delete.</div>
+
+        <div id="adminOrdersContainer">
+          <div style="font-size:12px; color:var(--muted); text-align:center; padding:20px;">Loading live orders...</div>
+        </div>
+      </div>
+
+      <!-- Panel 4: Schemes Management -->
+      <div class="panel" id="adminSchemesTab">
+        <div style="font-size: 14px; color: var(--gold); font-weight: bold; margin-bottom: 10px;">✨ Gold Savings Scheme Payments</div>
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 14px;">Verify monthly installment receipts submitted by scheme members.</div>
+
+        <div id="adminSchemesContainer">
+          <div style="font-size:12px; color:var(--muted); text-align:center; padding:20px;">Loading live scheme payments...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Catalogue Item Modal -->
+    <div class="modal-bg" id="editCatalogueModal">
+      <div class="modal-box">
+        <button class="close-modal" id="closeEditModalBtn" type="button">✕</button>
+        <div style="color:var(--gold); font-size:16px; font-weight:bold; margin-bottom:12px;">✏️ Edit Catalogue Item</div>
+
+        <input type="hidden" id="editItemKey">
+
+        <label style="font-size:11px; color:var(--muted)" for="editItemTitle">Item Title *</label>
+        <input type="text" id="editItemTitle" class="input">
+
+        <div class="row">
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editItemPurity">Purity</label>
+            <select id="editItemPurity" class="input">
+              <option value="24k">24K Gold (99.9%)</option>
+              <option value="22k">22K Gold (91.6%)</option>
+              <option value="20k">20K Gold (83.3%)</option>
+              <option value="18k">18K Gold (75.0%)</option>
+              <option value="silver">Fine Silver (99.9%)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editItemWeight">Weight (g) *</label>
+            <input type="number" id="editItemWeight" class="input" step="0.1">
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editItemWastage">Wastage (%) *</label>
+            <input type="number" id="editItemWastage" class="input" step="0.5">
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editItemMaking">Making (₹/g) *</label>
+            <input type="number" id="editItemMaking" class="input" step="10">
+          </div>
+        </div>
+
+        <label style="font-size:11px; color:var(--muted)" for="editItemImageFile">Replace Image (Optional)</label>
+        <input type="file" id="editItemImageFile" class="input" accept="image/*" style="padding:6px;">
+
+        <button class="btn" id="saveEditCatalogueBtn" type="button">Save Changes</button>
+      </div>
+    </div>
+
+    <!-- Edit Order Modal -->
+    <div class="modal-bg" id="editOrderModal">
+      <div class="modal-box">
+        <button class="close-modal" id="closeEditOrderModalBtn" type="button">✕</button>
+        <div style="color:var(--gold); font-size:16px; font-weight:bold; margin-bottom:12px;">✏️ Edit Customer Order</div>
+
+        <input type="hidden" id="editOrderKey">
+
+        <label style="font-size:11px; color:var(--muted)" for="editOrdName">Customer Full Name *</label>
+        <input type="text" id="editOrdName" class="input">
+
+        <div class="row">
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editOrdPhone">Phone Number *</label>
+            <input type="tel" id="editOrdPhone" class="input" maxlength="10">
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editOrdCity">City *</label>
+            <input type="text" id="editOrdCity" class="input">
+          </div>
+        </div>
+
+        <label style="font-size:11px; color:var(--muted)" for="editOrdAddress">Delivery Address *</label>
+        <input type="text" id="editOrdAddress" class="input">
+
+        <div class="row">
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editOrdItem">Item Type/Name *</label>
+            <input type="text" id="editOrdItem" class="input">
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editOrdWeight">Weight *</label>
+            <input type="text" id="editOrdWeight" class="input">
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editOrdTotal">Total Amount (₹) *</label>
+            <input type="text" id="editOrdTotal" class="input">
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--muted)" for="editOrdPaid">Paid Amount (₹) *</label>
+            <input type="text" id="editOrdPaid" class="input">
+          </div>
+        </div>
+
+        <label style="font-size:11px; color:var(--muted)" for="editOrdUtr">UTR / Transaction ID *</label>
+        <input type="text" id="editOrdUtr" class="input">
+
+        <button class="btn" id="saveEditOrderBtn" type="button">Save Order Changes</button>
+      </div>
+    </div>
+
+    <script>
+    let db = null;
+    let cachedCatalogueData = {};
+    let cachedOrdersData = {};
+    let previousOrdersCount = null;
+    let previousSchemesCount = null;
+
+    try {
+      const firebaseConfig = {
+        databaseURL: "https://vadiraj-jewellers-42410-default-rtdb.firebaseio.com/"
+      };
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      db = firebase.database();
+    } catch (e) {
+      console.log("Firebase sync active.");
+    }
+
+    function checkAdminNotifications(ordersData, schemesData) {
+      let newOrdersCount = ordersData ? Object.keys(ordersData).length : 0;
+      let newSchemesCount = schemesData ? Object.keys(schemesData).length : 0;
+
+      let hasNew = false;
+      let ordersBadge = document.getElementById('ordersTabBadge');
+      let schemesBadge = document.getElementById('schemesTabBadge');
+      let headerBadge = document.getElementById('adminHeaderBadge');
+
+      if (previousOrdersCount !== null && newOrdersCount > previousOrdersCount) {
+        hasNew = true;
+        if (ordersBadge) ordersBadge.style.display = 'inline-block';
+      }
+      if (previousSchemesCount !== null && newSchemesCount > previousSchemesCount) {
+        hasNew = true;
+        if (schemesBadge) schemesBadge.style.display = 'inline-block';
+      }
+
+      if (hasNew && headerBadge) {
+        headerBadge.classList.add('active');
+      }
+
+      if (previousOrdersCount === null) previousOrdersCount = newOrdersCount;
+      if (previousSchemesCount === null) previousSchemesCount = newSchemesCount;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      tabButtons.forEach(btn => {
+        btn.onclick = function() {
+          tabButtons.forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+
+          if (btn.getAttribute('data-tab') === 'adminOrdersTab') {
+            let badge = document.getElementById('ordersTabBadge');
+            if (badge) badge.style.display = 'none';
+            document.getElementById('adminHeaderBadge').classList.remove('active');
+          } else if (btn.getAttribute('data-tab') === 'adminSchemesTab') {
+            let badge = document.getElementById('schemesTabBadge');
+            if (badge) badge.style.display = 'none';
+            document.getElementById('adminHeaderBadge').classList.remove('active');
+          }
+        };
+      });
+
+      document.getElementById('closeEditModalBtn').onclick = function() {
+        document.getElementById('editCatalogueModal').classList.remove('active');
+      };
+
+      document.getElementById('closeEditOrderModalBtn').onclick = function() {
+        document.getElementById('editOrderModal').classList.remove('active');
+      };
+
+      // Broadcast Rates
+      document.getElementById('broadcastRatesBtn').onclick = function() {
+        let g24_10g = parseFloat(document.getElementById('adminGold24k10g').value) || 144600;
+        let silver_1kg = parseFloat(document.getElementById('adminSilver1kg').value) || 95000;
+
+        if (db) {
+          db.ref('admin_rates').set({
+            '24k_10g': g24_10g,
+            'silver_1kg': silver_1kg,
+            timestamp: new Date().toLocaleString()
+          }).then(() => {
+            alert('✅ Live metal rates broadcasted successfully to all customer devices!');
+          });
+        } else {
+          alert('Database offline.');
+        }
+      };
+
+      // Upload Catalogue
+      document.getElementById('uploadCatalogueBtn').onclick = function() {
+        let title = document.getElementById('itemTitle').value.trim();
+        let purityKey = document.getElementById('itemPurity').value;
+        let purityText = document.getElementById('itemPurity').options[document.getElementById('itemPurity').selectedIndex].text;
+        let weightVal = parseFloat(document.getElementById('itemWeight').value) || 10;
+        let wastagePct = parseFloat(document.getElementById('itemWastage').value) || 8;
+        let makingPerGram = parseFloat(document.getElementById('itemMaking').value) || 250;
+        let imageFile = document.getElementById('itemImageFile');
+
+        if (!title || !imageFile.files.length) {
+          alert('Please enter item title and attach an image.');
+          return;
+        }
+
+        let reader = new FileReader();
+        reader.onload = function(e) {
+          let imageBase64 = e.target.result;
+          if (db) {
+            let newKey = db.ref('catalogue').push().key;
+            db.ref('catalogue/' + newKey).set({
+              title: title,
+              purityKey: purityKey,
+              purity: purityText,
+              weightVal: weightVal,
+              weight: weightVal + 'g',
+              wastagePct: wastagePct,
+              makingPerGram: makingPerGram,
+              image: imageBase64,
+              date: new Date().toLocaleString()
+            }).then(() => {
+              alert('✅ Jewellery design uploaded successfully to catalogue!');
+              document.getElementById('itemTitle').value = '';
+              document.getElementById('itemImageFile').value = '';
+            });
+          }
+        };
+        reader.readAsDataURL(imageFile.files[0]);
+      };
+
+      // Save Edited Catalogue Item
+      document.getElementById('saveEditCatalogueBtn').onclick = function() {
+        let key = document.getElementById('editItemKey').value;
+        let title = document.getElementById('editItemTitle').value.trim();
+        let purityKey = document.getElementById('editItemPurity').value;
+        let purityText = document.getElementById('editItemPurity').options[document.getElementById('editItemPurity').selectedIndex].text;
+        let weightVal = parseFloat(document.getElementById('editItemWeight').value) || 10;
+        let wastagePct = parseFloat(document.getElementById('editItemWastage').value) || 8;
+        let makingPerGram = parseFloat(document.getElementById('editItemMaking').value) || 250;
+        let imageFile = document.getElementById('editItemImageFile');
+
+        if (!title) {
+          alert('Please enter item title.');
+          return;
+        }
+
+        let updateData = {
+          title: title,
+          purityKey: purityKey,
+          purity: purityText,
+          weightVal: weightVal,
+          weight: weightVal + 'g',
+          wastagePct: wastagePct,
+          makingPerGram: makingPerGram
+        };
+
+        function executeUpdate(finalData) {
+          if (db) {
+            db.ref('catalogue/' + key).update(finalData).then(() => {
+              alert('✅ Catalogue item updated successfully!');
+              document.getElementById('editCatalogueModal').classList.remove('active');
+            });
+          }
+        }
+
+        if (imageFile.files && imageFile.files[0]) {
+          let reader = new FileReader();
+          reader.onload = function(e) {
+            updateData.image = e.target.result;
+            executeUpdate(updateData);
+          };
+          reader.readAsDataURL(imageFile.files[0]);
+        } else {
+          executeUpdate(updateData);
+        }
+      };
+
+      // Save Edited Order
+      document.getElementById('saveEditOrderBtn').onclick = function() {
+        let key = document.getElementById('editOrderKey').value;
+        let name = document.getElementById('editOrdName').value.trim();
+        let phone = document.getElementById('editOrdPhone').value.trim();
+        let city = document.getElementById('editOrdCity').value.trim();
+        let address = document.getElementById('editOrdAddress').value.trim();
+        let item = document.getElementById('editOrdItem').value.trim();
+        let weight = document.getElementById('editOrdWeight').value.trim();
+        let total = document.getElementById('editOrdTotal').value.trim();
+        let paid = document.getElementById('editOrdPaid').value.trim();
+        let utr = document.getElementById('editOrdUtr').value.trim();
+
+        if (!name || !phone || !utr) {
+          alert('Please fill in required order details.');
+          return;
+        }
+
+        if (db) {
+          db.ref('orders/' + key).update({
+            name: name,
+            phone: phone,
+            city: city,
+            address: address,
+            item: item,
+            weight: weight,
+            total: total,
+            paidAmount: paid,
+            utr: utr
+          }).then(() => {
+            alert('✅ Order updated successfully!');
+            document.getElementById('editOrderModal').classList.remove('active');
+          });
+        }
+      };
+
+      if (db) {
+        // Load Catalogue List with Tap to Expand / Collapse
+        db.ref('catalogue').on('value', snapshot => {
+          let container = document.getElementById('adminCatalogueListContainer');
+          cachedCatalogueData = snapshot.val() || {};
+
+          if (Object.keys(cachedCatalogueData).length === 0) {
+            container.innerHTML = `<div style="font-size:12px; color:var(--muted); text-align:center; padding:15px;">No catalogue items uploaded yet.</div>`;
+            return;
+          }
+
+          let html = '';
+          Object.keys(cachedCatalogueData).forEach(k => {
+            let item = cachedCatalogueData[k];
+            html += `
+            <div class="admin-cat-card" id="cat_card_${k}">
+              <div class="admin-cat-summary" onclick="toggleCatalogueExpand('${k}')">
+                <img src="${item.image}" class="admin-cat-thumb" alt="${item.title}" />
+                <div class="admin-cat-info">
+                  <div style="color:var(--gold); font-weight:bold; margin-bottom:2px;">${item.title}</div>
+                  <div style="color:#fff; font-size:11px;">${item.weight} • ${item.purity}</div>
+                </div>
+                <div style="color:var(--muted); font-size:14px;">▼</div>
+              </div>
+              <div class="admin-cat-details">
+                <img src="${item.image}" class="tx-img" alt="${item.title}" />
+                <div style="color:var(--muted); font-size:11px; margin-bottom:4px;"><b>Wastage:</b> ${item.wastagePct}% | <b>Making:</b> ₹${item.makingPerGram}/g</div>
+                <div style="color:var(--muted); font-size:10px; margin-bottom:8px;"><b>Uploaded:</b> ${item.date || 'N/A'}</div>
+                <div class="action-row">
+                  <button class="sm-btn btn-green" style="padding:10px; font-weight:bold; cursor:pointer;" onclick="openEditCatalogueModal('${k}')">✏️ Edit Design</button>
+                  <button class="sm-btn btn-red" style="padding:10px; font-weight:bold; cursor:pointer;" onclick="deleteCatalogueItem('${k}')">🗑️ Delete</button>
+                </div>
+              </div>
+            </div>
+          `;
+          });
+          container.innerHTML = html;
+        });
+
+        // Load Live Orders with Tap to Expand / Collapse & Notification Check
+        db.ref('orders').on('value', snapshot => {
+          let container = document.getElementById('adminOrdersContainer');
+          cachedOrdersData = snapshot.val() || {};
+
+          db.ref('schemes').once('value', schemeSnap => {
+            checkAdminNotifications(cachedOrdersData, schemeSnap.val());
+          });
+
+          if (Object.keys(cachedOrdersData).length === 0) {
+            container.innerHTML = `<div style="font-size:12px; color:var(--muted); text-align:center; padding:20px;">No orders found.</div>`;
+            return;
+          }
+
+          let html = '';
+          Object.keys(cachedOrdersData).reverse().forEach(k => {
+            let ord = cachedOrdersData[k];
+            html += `
+            <div class="tx-card" id="order_card_${k}">
+              <div class="tx-summary-bar" onclick="toggleOrderExpand('${k}')">
+                <div>
+                  <span style="color:var(--gold); font-weight:bold;">Order: ${ord.id}</span>
+                  <div style="color:#fff; font-size:11px; margin-top:2px;">${ord.name} (${ord.phone}) • ${ord.total}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:11px; font-weight:bold; color:${ord.status === 'Payment Verified' ? 'var(--green)' : 'var(--warning)'};">${ord.status}</span>
+                  <span style="color:var(--muted); font-size:14px;">▼</span>
+                </div>
+              </div>
+              <div class="tx-details-body">
+                <div style="color:#fff; margin-bottom:4px;"><b>Item:</b> ${ord.item} (${ord.weight})</div>
+                <div style="color:var(--muted); margin-bottom:4px;"><b>Paid Amount:</b> ${ord.paidAmount} | <b>UTR:</b> ${ord.utr}</div>
+                <div style="color:var(--muted); font-size:11px; margin-bottom:6px;"><b>City/Address:</b> ${ord.city}, ${ord.address}</div>
+                <div style="color:var(--muted); font-size:10px; margin-bottom:8px;"><b>Date:</b> ${ord.date}</div>
+                ${ord.screenshot ? `<img src="${ord.screenshot}" class="tx-img" alt="Payment Screenshot" />` : ''}
+                
+                <div class="action-row">
+                  <button class="btn btn-green" onclick="updateOrderStatus('${k}', 'Payment Verified')">✓ Verify</button>
+                  <button class="btn btn-red" onclick="updateOrderStatus('${k}', 'Rejected')">✕ Reject</button>
+                </div>
+                <div class="action-row">
+                  <button class="sm-btn btn-green" style="padding:10px; font-size:12px; font-weight:bold; cursor:pointer;" onclick="openEditOrderModal('${k}')">✏️ Edit Order</button>
+                  <button class="sm-btn btn-red" style="padding:10px; font-size:12px; font-weight:bold; cursor:pointer;" onclick="deleteOrder('${k}')">🗑️ Delete Order</button>
+                </div>
+              </div>
+            </div>
+          `;
+          });
+          container.innerHTML = html;
+        });
+
+        // Load Live Schemes with Notification Check
+        db.ref('schemes').on('value', snapshot => {
+          let container = document.getElementById('adminSchemesContainer');
+          let data = snapshot.val() || {};
+
+          db.ref('orders').once('value', orderSnap => {
+            checkAdminNotifications(orderSnap.val(), data);
+          });
+
+          if (Object.keys(data).length === 0) {
+            container.innerHTML = `<div style="font-size:12px; color:var(--muted); text-align:center; padding:20px;">No scheme payments found.</div>`;
+            return;
+          }
+
+          let html = '';
+          Object.keys(data).reverse().forEach(k => {
+            let sch = data[k];
+            html += `
+            <div class="tx-card">
+              <div class="tx-header" style="padding:12px; margin-bottom:0;"><span>Scheme: ${sch.id}</span><span>${sch.status}</span></div>
+              <div style="padding:12px; border-top:1px dashed var(--border);">
+                <div style="color:#fff; margin-bottom:2px;"><b>Customer:</b> ${sch.name} (${sch.phone})</div>
+                <div style="color:var(--muted); margin-bottom:2px;"><b>Monthly Commitment:</b> ${sch.amount}</div>
+                <div style="color:var(--muted); margin-bottom:2px;"><b>Paid Amount:</b> ${sch.paidAmount} | <b>UTR:</b> ${sch.utr}</div>
+                ${sch.screenshot ? `<img src="${sch.screenshot}" class="tx-img" alt="Payment Screenshot" />` : ''}
+                <div class="action-row">
+                  <button class="btn btn-green" onclick="updateSchemeStatus('${k}', 'Payment Verified')">✓ Verify Payment</button>
+                  <button class="btn btn-red" onclick="updateSchemeStatus('${k}', 'Rejected')">✕ Reject</button>
+                </div>
+              </div>
+            </div>
+          `;
+          });
+          container.innerHTML = html;
+        });
+      }
+    });
+
+    window.toggleOrderExpand = function(key) {
+      let cardEl = document.getElementById('order_card_' + key);
+      if (cardEl) {
+        cardEl.classList.toggle('expanded');
+      }
+    };
+
+    window.toggleCatalogueExpand = function(key) {
+      let cardEl = document.getElementById('cat_card_' + key);
+      if (cardEl) {
+        cardEl.classList.toggle('expanded');
+      }
+    };
+
+    window.openEditCatalogueModal = function(key) {
+      let item = cachedCatalogueData[key];
+      if (!item) return;
+
+      document.getElementById('editItemKey').value = key;
+      document.getElementById('editItemTitle').value = item.title || '';
+      document.getElementById('editItemPurity').value = item.purityKey || '22k';
+      document.getElementById('editItemWeight').value = item.weightVal || 10;
+      document.getElementById('editItemWastage').value = item.wastagePct || 8;
+      document.getElementById('editItemMaking').value = item.makingPerGram || 250;
+      document.getElementById('editItemImageFile').value = '';
+
+      document.getElementById('editCatalogueModal').classList.add('active');
+    };
+
+    window.openEditOrderModal = function(key) {
+      let ord = cachedOrdersData[key];
+      if (!ord) return;
+
+      document.getElementById('editOrderKey').value = key;
+      document.getElementById('editOrdName').value = ord.name || '';
+      document.getElementById('editOrdPhone').value = ord.phone || '';
+      document.getElementById('editOrdCity').value = ord.city || '';
+      document.getElementById('editOrdAddress').value = ord.address || '';
+      document.getElementById('editOrdItem').value = ord.item || '';
+      document.getElementById('editOrdWeight').value = ord.weight || '';
+      document.getElementById('editOrdTotal').value = ord.total || '';
+      document.getElementById('editOrdPaid').value = ord.paidAmount || '';
+      document.getElementById('editOrdUtr').value = ord.utr || '';
+
+      document.getElementById('editOrderModal').classList.add('active');
+    };
+
+    window.deleteCatalogueItem = function(key) {
+      if (confirm('Are you sure you want to delete this catalogue design?')) {
+        if (db) {
+          db.ref('catalogue/' + key).remove().then(() => {
+            alert('Catalogue item deleted successfully.');
+          });
+        }
+      }
+    };
+
+    window.deleteOrder = function(key) {
+      if (confirm('Are you sure you want to delete this order record?')) {
+        if (db) {
+          db.ref('orders/' + key).remove().then(() => {
+            alert('Order deleted successfully.');
+          });
+        }
+      }
+    };
+
+    window.updateOrderStatus = function(key, status) {
+      if (db) {
+        db.ref('orders/' + key).update({
+          status: status
+        }).then(() => {
+          alert('Order status updated to: ' + status);
+        });
+      }
+    };
+
+    window.updateSchemeStatus = function(key, status) {
+      if (db) {
+        db.ref('schemes/' + key).update({
+          status: status
+        }).then(() => {
+          alert('Scheme status updated to: ' + status);
+        });
+      }
+    };
+
+    </script>
+
+  </body>
+
+</html>
